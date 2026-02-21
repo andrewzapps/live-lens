@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 #live-lens-overlay {
   position: fixed;
   inset: 0;
@@ -57,7 +59,7 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  font-family: system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .live-lens-pill:hover .live-lens-pill-close {
@@ -137,7 +139,7 @@
 }
 
 .live-lens-error {
-  font-family: system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #f88;
   max-width: 200px;
@@ -165,7 +167,7 @@
   justify-content: center;
   padding: 32px;
   background: rgba(0, 0, 0, 0.7);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .live-lens-response-box {
@@ -197,7 +199,7 @@
   padding: 14px 28px;
   font-size: 18px;
   font-weight: 600;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
   color: #000;
   background: #fff;
   border: none;

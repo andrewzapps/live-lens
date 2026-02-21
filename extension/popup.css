@@ -1,7 +1,7 @@
 body {
   width: 300px;
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
   color: #fff;
   background: #0a0a0a;
@@ -27,7 +27,7 @@ select {
   border: none;
   border-radius: 8px;
   font-size: 14px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
   background: #1a1a1a;
   color: #fff;
   transition: background 0.2s ease;
@@ -61,7 +61,7 @@ button {
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 500;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
   color: #000;
   background: #fff;
   border: none;
