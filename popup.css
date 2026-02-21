@@ -1,80 +1,90 @@
 body {
-  width: 320px;
+  width: 300px;
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  color: #1a1a1a;
-  background: #fff;
+  color: #fff;
+  background: #0a0a0a;
 }
 
 .container {
   padding: 16px;
 }
 
-h1 {
-  margin: 0 0 12px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.usage {
-  margin: 0 0 16px 0;
-  color: #444;
-  line-height: 1.4;
-}
-
-.usage kbd {
-  padding: 2px 6px;
-  font-size: 12px;
-  background: #eee;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
 label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-input {
+input,
+select {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin-bottom: 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: none;
+  border-radius: 8px;
   font-size: 14px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #fff;
+  transition: background 0.2s ease;
 }
 
-input:focus {
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+input:focus,
+select:focus {
   outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+  background: #222;
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+select option {
+  background: #1a1a1a;
+  color: #fff;
 }
 
 button {
-  padding: 8px 16px;
+  padding: 10px 20px;
   font-size: 14px;
   font-weight: 500;
-  color: #fff;
-  background: #0066cc;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #000;
+  background: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 button:hover {
-  background: #0052a3;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+button:focus {
+  outline: none;
 }
 
 .status {
   margin-top: 12px;
   font-size: 13px;
-  color: #0d8050;
+  color: rgba(255, 255, 255, 0.6);
   min-height: 1.2em;
 }
 
 .status.error {
-  color: #c00;
+  color: #f88;
 }

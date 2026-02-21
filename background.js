@@ -43,12 +43,20 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 function handleDeepgramTTS(text) {
   if (!text || !text.trim()) return Promise.resolve({ error: 'No text to speak.' });
   var truncated = text.length > 3000 ? text.slice(0, 3000) + '\u2026' : text;
-  return chrome.storage.sync.get(['deepgramApiKey']).then(function (result) {
+  return chrome.storage.sync.get(['deepgramApiKey', 'deepgramVoice', 'speechOutputLanguage']).then(function (result) {
     var apiKey = result.deepgramApiKey;
     if (!apiKey) {
       return { error: 'Set Deepgram API key in the extension popup for voice.' };
     }
-    var url = 'https://api.deepgram.com/v1/speak?model=aura-2-aries-en&encoding=mp3';
+    var outLang = result.speechOutputLanguage || 'en';
+    var model;
+    if (outLang === 'en') {
+      model = result.deepgramVoice || 'aura-2-aries-en';
+    } else {
+      var langModels = { es: 'aura-2-celeste-es', fr: 'aura-2-agathe-fr', de: 'aura-2-julius-de', ja: 'aura-2-fujin-ja' };
+      model = langModels[outLang] || 'aura-2-aries-en';
+    }
+    var url = 'https://api.deepgram.com/v1/speak?model=' + encodeURIComponent(model) + '&encoding=mp3';
     return fetch(url, {
       method: 'POST',
       headers: {
@@ -73,7 +81,7 @@ function handleDeepgramTTS(text) {
 }
 
 function handleOpenAIRequest(payload, senderTab) {
-  return chrome.storage.sync.get(['openaiApiKey']).then(function (result) {
+  return chrome.storage.sync.get(['openaiApiKey', 'speechOutputLanguage']).then(function (result) {
     var apiKey = result.openaiApiKey;
     if (!apiKey) {
       return { error: 'Please set your API key in the extension popup.' };
@@ -86,18 +94,19 @@ function handleOpenAIRequest(payload, senderTab) {
           if (senderTab.id) {
             chrome.tabs.sendMessage(senderTab.id, { type: 'CAPTURE_DONE' }).catch(function () {});
           }
-          return runOpenAI(apiKey, payload);
+          return runOpenAI(apiKey, payload, result);
         })
         .catch(function (err) {
           return { error: 'Could not capture the page. Try again.' };
         });
     }
-    return runOpenAI(apiKey, payload);
+    return runOpenAI(apiKey, payload, result);
   });
 }
 
-function runOpenAI(apiKey, payload) {
-  var built = buildOpenAIPayload(payload);
+function runOpenAI(apiKey, payload, storageResult) {
+  var outputLang = (storageResult && storageResult.speechOutputLanguage) || 'en';
+  var built = buildOpenAIPayload(payload, outputLang);
   return callOpenAI(apiKey, built.model, built.messages).then(
     function (text) {
       return { text: text };
@@ -117,12 +126,17 @@ function queryWantsVision(query) {
   return false;
 }
 
-function buildOpenAIPayload(payload) {
+function buildOpenAIPayload(payload, outputLang) {
   var query = payload.query || '';
   var elements = payload.elements || [];
   var imagePayloads = payload.imagePayloads || [];
 
-  var systemText = 'You are helping a blind or low-vision user understand a web page. You will receive a list of elements with positions (top, left, width, height in pixels, relative to viewport) and the user\'s question. When given a screenshot of the page, describe what you see clearly and concisely. Give concise, straight-to-the-point answers that are still useful. No long intros or filler—your answer will be read aloud.';
+  var langNames = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese' };
+  var langInstruction = outputLang && outputLang !== 'en' && langNames[outputLang]
+    ? ' You must respond entirely in ' + langNames[outputLang] + '. Your answer will be read aloud in ' + langNames[outputLang] + '.'
+    : '';
+
+  var systemText = 'You are helping a blind or low-vision user understand a web page. You will receive a list of elements with positions (top, left, width, height in pixels, relative to viewport) and the user\'s question. When given a screenshot of the page, describe what you see clearly and concisely. Give concise, straight-to-the-point answers that are still useful. No long intros or filler—your answer will be read aloud.' + langInstruction;
   var elementsText = JSON.stringify(elements, null, 0);
   if (elementsText.length > 12000) {
     elementsText = elementsText.slice(0, 12000) + '...[truncated]';
