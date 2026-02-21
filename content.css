@@ -26,11 +26,54 @@
   min-width: 120px;
   height: 48px;
   padding: 0 16px;
-  background: linear-gradient(to bottom, #000, #222);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(34,34,34,0.85));
   border: none;
-  opacity: 0.9;
+  opacity: 0.95;
+  /* For backdrop-filter blur to work, the element must not be fully opaque and must be on top of something to blur. Also, add required vendor prefix for Safari support: */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   border-radius: 9999px;
   box-sizing: border-box;
+  position: relative;
+  /* Ensure stacking context is above background; can add background behind overlay if no blur is visible. */
+  /* z-index left as inherited; check outside for stacking backgrounds if no blur appears. */
+}
+
+
+.live-lens-pill-close {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  font-family: system-ui, sans-serif;
+}
+
+.live-lens-pill:hover .live-lens-pill-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.live-lens-pill-close:hover {
+  background: rgba(20, 20, 20, 0.95);
+}
+
+.live-lens-pill-close:focus {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 1px solid #fff;
+  outline-offset: 2px;
 }
 
 .live-lens-bars {

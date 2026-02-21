@@ -10,6 +10,7 @@
   var analyser = null;
   var volumeFrameId = null;
   var barEls = [];
+  var currentAudio = null;
 
   function getOverlay() {
     if (overlay) return overlay;
@@ -38,6 +39,17 @@
       barEls.push(bar);
     }
     pill.appendChild(bars);
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'live-lens-pill-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      hideOverlay();
+    });
+    pill.appendChild(closeBtn);
 
     wrap.appendChild(pill);
     overlay.appendChild(wrap);
@@ -141,6 +153,11 @@
     stopRecognition();
     stopVolumeBars();
     if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
     if (overlay) {
       overlay.setAttribute('aria-hidden', 'true');
       overlay.style.display = 'none';
@@ -360,17 +377,21 @@
         var blob = new Blob([bytes], { type: response.mimeType });
         var url = URL.createObjectURL(blob);
         var audio = new Audio(url);
+        currentAudio = audio;
         audio.onended = function () {
+          if (currentAudio === audio) currentAudio = null;
           URL.revokeObjectURL(url);
           if (onEnd) onEnd();
         };
         audio.onerror = function () {
+          if (currentAudio === audio) currentAudio = null;
           URL.revokeObjectURL(url);
           if (onEnd) onEnd();
         };
         audio.play().then(function () {
           if (onStart) onStart();
         }).catch(function () {
+          if (currentAudio === audio) currentAudio = null;
           URL.revokeObjectURL(url);
           fallbackSpeak(text, onEnd, onStart);
         });
