@@ -1,6 +1,8 @@
 (function () {
   var overlay = null;
   var recognition = null;
+  var silenceTimer = null;
+  var SILENCE_MS = 1000;
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function getOverlay() {
@@ -29,6 +31,13 @@
     cancelBtn.textContent = 'Cancel';
     cancelBtn.addEventListener('click', hideOverlay);
     actions.appendChild(cancelBtn);
+    var stopBtn = document.createElement('button');
+    stopBtn.type = 'button';
+    stopBtn.className = 'live-lens-btn live-lens-stop';
+    stopBtn.textContent = 'Stop';
+    stopBtn.style.display = 'none';
+    stopBtn.addEventListener('click', stopSpeaking);
+    actions.appendChild(stopBtn);
 
     box.appendChild(status);
     box.appendChild(actions);
@@ -54,6 +63,16 @@
     if (!el) return;
     el.setAttribute('data-state', state);
     el.textContent = text || (state === 'listening' ? 'Listening…' : state === 'processing' ? 'Processing…' : state === 'speaking' ? 'Speaking…' : state === 'error' ? 'Error' : state === 'done' ? 'Done' : '');
+    var o = overlay;
+    if (o) {
+      var stopBtn = o.querySelector('.live-lens-stop');
+      if (stopBtn) stopBtn.style.display = state === 'speaking' ? '' : 'none';
+    }
+  }
+
+  function stopSpeaking() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    hideOverlay();
   }
 
   function showOverlay() {
@@ -68,6 +87,7 @@
 
   function hideOverlay() {
     stopRecognition();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (overlay) {
       overlay.setAttribute('aria-hidden', 'true');
       overlay.style.display = 'none';
@@ -75,41 +95,31 @@
   }
 
   function stopRecognition() {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      silenceTimer = null;
+    }
     if (recognition) {
       try { recognition.abort(); } catch (e) {}
       recognition = null;
     }
   }
 
-  function startRecognition() {
-    if (!SpeechRecognition) {
-      setState('error', 'Speech recognition is not supported in this browser.');
+  function processTranscript(transcript) {
+    if (!transcript || !transcript.trim()) {
+      setState('listening', 'No speech detected. Try again or cancel.');
       return;
     }
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = document.documentElement.lang || 'en-US';
+    recognition = null;
+    setState('processing', 'Processing…');
+    var elements = extractElements();
+    var needScreenshot = wantsVision(transcript, elements);
 
-    recognition.onresult = function (event) {
-      var transcript = '';
-      if (event.results && event.results.length > 0 && event.results[0].length > 0) {
-        transcript = event.results[0][0].transcript || '';
-      }
-      recognition = null;
-      if (!transcript.trim()) {
-        setState('listening', 'No speech detected. Try again or cancel.');
-        return;
-      }
-      setState('processing', 'Processing…');
-      var elements = extractElements();
-      var imagePayloads = [];
-      if (wantsVision(transcript, elements)) {
-        imagePayloads = getImagePayloads(elements);
-      }
+    function sendRequest() {
       chrome.runtime.sendMessage(
-        { type: 'OPENAI_REQUEST', payload: { query: transcript, elements: elements, imagePayloads: imagePayloads } },
+        { type: 'OPENAI_REQUEST', payload: { query: transcript.trim(), elements: elements, needScreenshot: needScreenshot } },
         function (response) {
+          if (overlay) overlay.style.visibility = '';
           if (chrome.runtime.lastError) {
             setState('error', 'Extension error.');
             return;
@@ -122,14 +132,57 @@
           if (response && response.text) {
             setState('speaking', 'Speaking…');
             speak(response.text, function () {
-              setState('done', 'Done');
+              hideOverlay();
             });
           }
         }
       );
+    }
+
+    if (needScreenshot && overlay) {
+      overlay.style.visibility = 'hidden';
+      setTimeout(sendRequest, 200);
+    } else {
+      sendRequest();
+    }
+  }
+
+  function startRecognition() {
+    if (!SpeechRecognition) {
+      setState('error', 'Speech recognition is not supported in this browser.');
+      return;
+    }
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = document.documentElement.lang || 'en-US';
+
+    var lastTranscript = '';
+
+    recognition.onresult = function (event) {
+      var transcript = '';
+      var results = event.results;
+      for (var i = 0; i < results.length; i++) {
+        for (var j = 0; j < results[i].length; j++) {
+          transcript = results[i][j].transcript || '';
+        }
+      }
+      if (!transcript) return;
+      lastTranscript = transcript;
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(function () {
+        silenceTimer = null;
+        stopRecognition();
+        processTranscript(lastTranscript);
+      }, SILENCE_MS);
     };
 
     recognition.onerror = function (event) {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+      }
+      if (event.error === 'aborted') return;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setState('error', 'Microphone access was denied.');
       } else if (event.error === 'no-speech') {
@@ -252,6 +305,9 @@
   chrome.runtime.onMessage.addListener(function (message) {
     if (message.type === 'START_LIVE_LENS') {
       showOverlay();
+    } else if (message.type === 'CAPTURE_DONE') {
+      if (overlay) overlay.style.visibility = '';
+      setState('processing', 'Processing…');
     }
   });
 })();

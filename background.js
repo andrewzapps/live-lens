@@ -19,7 +19,7 @@ chrome.commands.onCommand.addListener(function (command) {
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (message.type === 'OPENAI_REQUEST') {
-    handleOpenAIRequest(message.payload, sender.tab?.id)
+    handleOpenAIRequest(message.payload, sender.tab)
       .then(function (result) {
         sendResponse(result);
       })
@@ -30,28 +30,45 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   }
 });
 
-function handleOpenAIRequest(payload, tabId) {
+function handleOpenAIRequest(payload, senderTab) {
   return chrome.storage.sync.get(['openaiApiKey']).then(function (result) {
-    const apiKey = result.openaiApiKey;
+    var apiKey = result.openaiApiKey;
     if (!apiKey) {
       return { error: 'Please set your API key in the extension popup.' };
     }
-    var built = buildOpenAIPayload(payload);
-    return callOpenAI(apiKey, built.model, built.messages).then(
-      function (text) {
-        return { text: text };
-      },
-      function (err) {
-        return { error: err.message || 'Could not reach the assistant. Check your API key and connection.' };
-      }
-    );
+    if (payload.needScreenshot && senderTab && senderTab.windowId) {
+      return chrome.tabs.captureVisibleTab(senderTab.windowId, { format: 'jpeg', quality: 92 })
+        .then(function (dataUrl) {
+          payload.imagePayloads = [{ dataUri: dataUrl }];
+          payload.needScreenshot = false;
+          if (senderTab.id) {
+            chrome.tabs.sendMessage(senderTab.id, { type: 'CAPTURE_DONE' }).catch(function () {});
+          }
+          return runOpenAI(apiKey, payload);
+        })
+        .catch(function (err) {
+          return { error: 'Could not capture the page. Try again.' };
+        });
+    }
+    return runOpenAI(apiKey, payload);
   });
 }
 
-function wantsVision(query, elements, imagePayloads) {
-  if (!imagePayloads || imagePayloads.length === 0) return false;
-  var q = query.toLowerCase();
-  var imageWords = ['image', 'picture', 'photo', 'that image', 'this image', 'the image', 'what is that', 'describe'];
+function runOpenAI(apiKey, payload) {
+  var built = buildOpenAIPayload(payload);
+  return callOpenAI(apiKey, built.model, built.messages).then(
+    function (text) {
+      return { text: text };
+    },
+    function (err) {
+      return { error: err.message || 'Could not reach the assistant. Check your API key and connection.' };
+    }
+  );
+}
+
+function queryWantsVision(query) {
+  var q = (query || '').toLowerCase();
+  var imageWords = ['image', 'picture', 'photo', 'screenshot', 'screen', 'that image', 'this image', 'the image', 'what is that', 'describe', 'what\'s on', 'whats on', 'show me', 'see on'];
   for (var i = 0; i < imageWords.length; i++) {
     if (q.indexOf(imageWords[i]) !== -1) return true;
   }
@@ -63,13 +80,13 @@ function buildOpenAIPayload(payload) {
   var elements = payload.elements || [];
   var imagePayloads = payload.imagePayloads || [];
 
-  var systemText = 'You are helping a blind or low-vision user understand a web page. You will receive a list of elements with positions (top, left, width, height in pixels, relative to viewport) and the user\'s question. Answer concisely and clearly; your answer will be read aloud.';
+  var systemText = 'You are helping a blind or low-vision user understand a web page. You will receive a list of elements with positions (top, left, width, height in pixels, relative to viewport) and the user\'s question. When given a screenshot of the page, describe what you see clearly and concisely. Give concise, straight-to-the-point answers that are still useful. No long intros or filler—your answer will be read aloud.';
   var elementsText = JSON.stringify(elements, null, 0);
   if (elementsText.length > 12000) {
     elementsText = elementsText.slice(0, 12000) + '...[truncated]';
   }
 
-  var useVision = wantsVision(query, elements, imagePayloads);
+  var useVision = queryWantsVision(query) && imagePayloads && imagePayloads.length > 0;
   var model = useVision ? 'gpt-4o' : 'gpt-4o-mini';
   var userContent = [];
 
