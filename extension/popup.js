@@ -34,6 +34,7 @@
   var deepgramInput = document.getElementById('deepgram-key');
   var voiceSelect = document.getElementById('voice');
   var languageSelect = document.getElementById('language');
+  var responseModeSelect = document.getElementById('response-mode');
   var saveBtn = document.getElementById('save');
   var status = document.getElementById('status');
 
@@ -51,13 +52,15 @@
     languageSelect.appendChild(opt);
   }
 
-  chrome.storage.sync.get(['openaiApiKey', 'deepgramApiKey', 'deepgramVoice', 'speechOutputLanguage'], function (result) {
+  chrome.storage.sync.get(['openaiApiKey', 'deepgramApiKey', 'deepgramVoice', 'speechOutputLanguage', 'responseMode'], function (result) {
     if (result.openaiApiKey) input.value = result.openaiApiKey;
     if (result.deepgramApiKey) deepgramInput.value = result.deepgramApiKey;
     if (result.deepgramVoice) voiceSelect.value = result.deepgramVoice;
     else voiceSelect.value = 'aura-2-aries-en';
     if (result.speechOutputLanguage) languageSelect.value = result.speechOutputLanguage;
     else languageSelect.value = 'en';
+    if (result.responseMode) responseModeSelect.value = result.responseMode;
+    else responseModeSelect.value = 'speak';
   });
 
   saveBtn.addEventListener('click', function () {
@@ -70,11 +73,13 @@
     var deepgramKey = deepgramInput.value.trim();
     var voice = voiceSelect.value || 'aura-2-aries-en';
     var language = languageSelect.value || 'en';
+    var responseMode = responseModeSelect.value || 'speak';
     chrome.storage.sync.set({
       openaiApiKey: key,
       deepgramApiKey: deepgramKey,
       deepgramVoice: voice,
-      speechOutputLanguage: language
+      speechOutputLanguage: language,
+      responseMode: responseMode
     }, function () {
       status.textContent = 'Saved.';
       status.classList.remove('error');

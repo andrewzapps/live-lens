@@ -11,6 +11,55 @@
   var volumeFrameId = null;
   var barEls = [];
   var currentAudio = null;
+  var responseOverlay = null;
+
+  function getResponseOverlay() {
+    if (responseOverlay) return responseOverlay;
+    responseOverlay = document.createElement('div');
+    responseOverlay.id = 'live-lens-response-overlay';
+    responseOverlay.setAttribute('role', 'dialog');
+    responseOverlay.setAttribute('aria-modal', 'true');
+    responseOverlay.setAttribute('aria-label', 'Live Lens response');
+    responseOverlay.className = 'live-lens-response-overlay';
+    responseOverlay.style.display = 'none';
+
+    var box = document.createElement('div');
+    box.className = 'live-lens-response-box';
+    var textEl = document.createElement('div');
+    textEl.className = 'live-lens-response-text';
+    textEl.setAttribute('aria-live', 'polite');
+    box.appendChild(textEl);
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'live-lens-response-close';
+    closeBtn.textContent = 'Close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.addEventListener('click', hideResponseOverlay);
+    box.appendChild(closeBtn);
+    responseOverlay.appendChild(box);
+
+    responseOverlay.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        hideResponseOverlay();
+      }
+    });
+    document.body.appendChild(responseOverlay);
+    return responseOverlay;
+  }
+
+  function showResponseOverlay(text) {
+    var el = getResponseOverlay();
+    var textEl = el.querySelector('.live-lens-response-text');
+    textEl.textContent = text || '';
+    el.style.display = 'flex';
+    var closeBtn = el.querySelector('.live-lens-response-close');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function hideResponseOverlay() {
+    if (responseOverlay) responseOverlay.style.display = 'none';
+  }
 
   function getOverlay() {
     if (overlay) return overlay;
@@ -195,15 +244,31 @@
             return;
           }
           if (response && response.error) {
-            setState('error', response.error);
-            speak(response.error);
+            chrome.storage.sync.get(['responseMode'], function (res) {
+              var mode = (res && res.responseMode) || 'speak';
+              if (mode === 'overlay') {
+                hideOverlay();
+                showResponseOverlay(response.error);
+              } else {
+                setState('error', response.error);
+                speak(response.error);
+              }
+            });
             return;
           }
           if (response && response.text) {
-            speak(response.text, function () {
-              hideOverlay();
-            }, function () {
-              setState('speaking');
+            chrome.storage.sync.get(['responseMode'], function (res) {
+              var mode = (res && res.responseMode) || 'speak';
+              if (mode === 'overlay') {
+                hideOverlay();
+                showResponseOverlay(response.text);
+              } else {
+                speak(response.text, function () {
+                  hideOverlay();
+                }, function () {
+                  setState('speaking');
+                });
+              }
             });
           }
         }

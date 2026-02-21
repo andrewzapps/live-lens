@@ -155,3 +155,61 @@
     height: 12px;
   }
 }
+
+.live-lens-response-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.live-lens-response-box {
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  max-height: 85vh;
+  width: 100%;
+  background: #1a1a1a;
+  border-radius: 16px;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.live-lens-response-text {
+  flex: 1;
+  overflow-y: auto;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.live-lens-response-close {
+  align-self: flex-end;
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #000;
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.live-lens-response-close:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.live-lens-response-close:focus {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
