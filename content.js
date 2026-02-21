@@ -67,6 +67,11 @@
     }
     if (state === 'listening') startVolumeBars();
     else stopVolumeBars();
+    if (state === 'processing' || state === 'speaking') {
+      for (var i = 0; i < barEls.length; i++) {
+        if (barEls[i]) barEls[i].style.removeProperty('height');
+      }
+    }
   }
 
   function stopSpeaking() {
@@ -178,9 +183,10 @@
             return;
           }
           if (response && response.text) {
-            setState('speaking');
             speak(response.text, function () {
               hideOverlay();
+            }, function () {
+              setState('speaking');
             });
           }
         }
@@ -337,14 +343,52 @@
     }
   }
 
-  function speak(text, onEnd) {
-    if (!text || !window.speechSynthesis) {
+  function speak(text, onEnd, onStart) {
+    if (!text) {
       if (onEnd) onEnd();
       return;
     }
-    var truncated = text.length > 3000 ? text.slice(0, 3000) + '…' : text;
+    chrome.runtime.sendMessage({ type: 'DEEPGRAM_TTS', text: text }, function (response) {
+      if (chrome.runtime.lastError || (response && response.error)) {
+        fallbackSpeak(text, onEnd, onStart);
+        return;
+      }
+      if (response && response.audioBase64 && response.mimeType) {
+        var binary = atob(response.audioBase64);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        var blob = new Blob([bytes], { type: response.mimeType });
+        var url = URL.createObjectURL(blob);
+        var audio = new Audio(url);
+        audio.onended = function () {
+          URL.revokeObjectURL(url);
+          if (onEnd) onEnd();
+        };
+        audio.onerror = function () {
+          URL.revokeObjectURL(url);
+          if (onEnd) onEnd();
+        };
+        audio.play().then(function () {
+          if (onStart) onStart();
+        }).catch(function () {
+          URL.revokeObjectURL(url);
+          fallbackSpeak(text, onEnd, onStart);
+        });
+      } else {
+        fallbackSpeak(text, onEnd, onStart);
+      }
+    });
+  }
+
+  function fallbackSpeak(text, onEnd, onStart) {
+    if (!window.speechSynthesis) {
+      if (onEnd) onEnd();
+      return;
+    }
+    var truncated = text.length > 3000 ? text.slice(0, 3000) + '\u2026' : text;
     var u = new SpeechSynthesisUtterance(truncated);
     u.rate = 1;
+    u.onstart = function () { if (onStart) onStart(); };
     u.onend = function () { if (onEnd) onEnd(); };
     u.onerror = function () { if (onEnd) onEnd(); };
     window.speechSynthesis.speak(u);

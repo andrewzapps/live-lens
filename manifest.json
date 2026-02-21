@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Voice-powered assistant for blind and low-vision users to understand web pages.",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["<all_urls>", "https://api.openai.com/*"],
+  "host_permissions": ["<all_urls>", "https://api.openai.com/*","https://api.deepgram.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Live Lens"

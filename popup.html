@@ -9,9 +9,11 @@
 <body>
   <div class="container">
     <h1>Live Lens</h1>
-    <p class="usage">Set your OpenAI API key, then use the shortcut <kbd>Ctrl+Shift+L</kbd> (or <kbd>Cmd+Shift+L</kbd> on Mac) on any page to ask questions by voice.</p>
+    <p class="usage">Set your API keys, then use the shortcut <kbd>Ctrl+Shift+L</kbd> (or <kbd>Cmd+Shift+L</kbd> on Mac) on any page to ask questions by voice.</p>
     <label for="api-key">OpenAI API key</label>
     <input type="password" id="api-key" placeholder="sk-..." autocomplete="off" />
+    <label for="deepgram-key">Deepgram API key (for voice)</label>
+    <input type="password" id="deepgram-key" placeholder="Deepgram key" autocomplete="off" />
     <button type="button" id="save">Save</button>
     <p id="status" class="status" aria-live="polite"></p>
   </div>

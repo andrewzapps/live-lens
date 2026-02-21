@@ -28,7 +28,49 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
       });
     return true;
   }
+  if (message.type === 'DEEPGRAM_TTS') {
+    handleDeepgramTTS(message.text)
+      .then(function (result) {
+        sendResponse(result);
+      })
+      .catch(function (err) {
+        sendResponse({ error: err.message || 'TTS failed.' });
+      });
+    return true;
+  }
 });
+
+function handleDeepgramTTS(text) {
+  if (!text || !text.trim()) return Promise.resolve({ error: 'No text to speak.' });
+  var truncated = text.length > 3000 ? text.slice(0, 3000) + '\u2026' : text;
+  return chrome.storage.sync.get(['deepgramApiKey']).then(function (result) {
+    var apiKey = result.deepgramApiKey;
+    if (!apiKey) {
+      return { error: 'Set Deepgram API key in the extension popup for voice.' };
+    }
+    var url = 'https://api.deepgram.com/v1/speak?model=aura-2-aries-en&encoding=mp3';
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Token ' + apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: truncated }),
+    }).then(function (res) {
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Invalid Deepgram API key.');
+        throw new Error('Deepgram TTS failed.');
+      }
+      return res.arrayBuffer();
+    }).then(function (buffer) {
+      var bytes = new Uint8Array(buffer);
+      var binary = '';
+      for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      var base64 = btoa(binary);
+      return { audioBase64: base64, mimeType: 'audio/mpeg' };
+    });
+  });
+}
 
 function handleOpenAIRequest(payload, senderTab) {
   return chrome.storage.sync.get(['openaiApiKey']).then(function (result) {
