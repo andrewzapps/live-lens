@@ -1,9 +1,15 @@
 (function () {
   var overlay = null;
+  var pill = null;
   var recognition = null;
   var silenceTimer = null;
   var SILENCE_MS = 1000;
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var audioStream = null;
+  var audioContext = null;
+  var analyser = null;
+  var volumeFrameId = null;
+  var barEls = [];
 
   function getOverlay() {
     if (overlay) return overlay;
@@ -15,33 +21,26 @@
     overlay.setAttribute('aria-live', 'polite');
     overlay.setAttribute('aria-hidden', 'true');
 
-    var box = document.createElement('div');
-    box.className = 'live-lens-box';
+    var wrap = document.createElement('div');
+    wrap.className = 'live-lens-pill-wrap';
 
-    var status = document.createElement('div');
-    status.className = 'live-lens-status';
-    status.setAttribute('data-state', 'idle');
-    status.textContent = 'Listening…';
+    pill = document.createElement('div');
+    pill.className = 'live-lens-pill live-lens-pill--listening';
 
-    var actions = document.createElement('div');
-    actions.className = 'live-lens-actions';
-    var cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'live-lens-btn';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', hideOverlay);
-    actions.appendChild(cancelBtn);
-    var stopBtn = document.createElement('button');
-    stopBtn.type = 'button';
-    stopBtn.className = 'live-lens-btn live-lens-stop';
-    stopBtn.textContent = 'Stop';
-    stopBtn.style.display = 'none';
-    stopBtn.addEventListener('click', stopSpeaking);
-    actions.appendChild(stopBtn);
+    var bars = document.createElement('div');
+    bars.className = 'live-lens-bars';
+    barEls = [];
+    for (var i = 0; i < 5; i++) {
+      var bar = document.createElement('div');
+      bar.className = 'live-lens-bar';
+      bar.setAttribute('aria-hidden', 'true');
+      bars.appendChild(bar);
+      barEls.push(bar);
+    }
+    pill.appendChild(bars);
 
-    box.appendChild(status);
-    box.appendChild(actions);
-    overlay.appendChild(box);
+    wrap.appendChild(pill);
+    overlay.appendChild(wrap);
     document.body.appendChild(overlay);
 
     overlay.addEventListener('keydown', function (e) {
@@ -54,20 +53,20 @@
     return overlay;
   }
 
-  function getStatusEl() {
-    return getOverlay().querySelector('.live-lens-status');
-  }
-
   function setState(state, text) {
-    var el = getStatusEl();
-    if (!el) return;
-    el.setAttribute('data-state', state);
-    el.textContent = text || (state === 'listening' ? 'Listening…' : state === 'processing' ? 'Processing…' : state === 'speaking' ? 'Speaking…' : state === 'error' ? 'Error' : state === 'done' ? 'Done' : '');
-    var o = overlay;
-    if (o) {
-      var stopBtn = o.querySelector('.live-lens-stop');
-      if (stopBtn) stopBtn.style.display = state === 'speaking' ? '' : 'none';
+    if (!pill) return;
+    pill.classList.remove('live-lens-pill--listening', 'live-lens-pill--loading', 'live-lens-pill--speaking', 'live-lens-pill--error');
+    pill.classList.add('live-lens-pill--' + state);
+    var errorEl = pill.querySelector('.live-lens-error');
+    if (errorEl) errorEl.remove();
+    if (state === 'error' && text) {
+      var err = document.createElement('div');
+      err.className = 'live-lens-error';
+      err.textContent = text.length > 60 ? text.slice(0, 57) + '…' : text;
+      pill.insertBefore(err, pill.firstChild);
     }
+    if (state === 'listening') startVolumeBars();
+    else stopVolumeBars();
   }
 
   function stopSpeaking() {
@@ -75,18 +74,67 @@
     hideOverlay();
   }
 
+  function startVolumeBars() {
+    stopVolumeBars();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      audioStream = stream;
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+        analyser.smoothingTimeConstant = 0.6;
+        var source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        var dataArray = new Uint8Array(analyser.frequencyBinCount);
+        function tick() {
+          if (!analyser) return;
+          analyser.getByteFrequencyData(dataArray);
+          var sum = 0;
+          for (var i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          var avg = sum / dataArray.length;
+          var height = 4 + (avg / 255) * 20;
+          for (var j = 0; j < barEls.length; j++) {
+            var h = 4 + (height * (0.6 + 0.4 * Math.sin(Date.now() / 100 + j)))|0;
+            if (barEls[j]) barEls[j].style.height = Math.min(24, h) + 'px';
+          }
+          volumeFrameId = requestAnimationFrame(tick);
+        }
+        tick();
+      } catch (e) {}
+    }).catch(function () {});
+  }
+
+  function stopVolumeBars() {
+    if (volumeFrameId) {
+      cancelAnimationFrame(volumeFrameId);
+      volumeFrameId = null;
+    }
+    if (audioStream) {
+      audioStream.getTracks().forEach(function (t) { t.stop(); });
+      audioStream = null;
+    }
+    if (audioContext) {
+      audioContext.close().catch(function () {});
+      audioContext = null;
+    }
+    analyser = null;
+    for (var i = 0; i < barEls.length; i++) {
+      if (barEls[i]) barEls[i].style.height = '4px';
+    }
+  }
+
   function showOverlay() {
     var o = getOverlay();
     o.setAttribute('aria-hidden', 'false');
     o.style.display = 'flex';
-    setState('listening', 'Listening…');
-    var cancelBtn = o.querySelector('.live-lens-btn');
-    if (cancelBtn) cancelBtn.focus();
+    setState('listening');
     startRecognition();
   }
 
   function hideOverlay() {
     stopRecognition();
+    stopVolumeBars();
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (overlay) {
       overlay.setAttribute('aria-hidden', 'true');
@@ -106,12 +154,12 @@
   }
 
   function processTranscript(transcript) {
-    if (!transcript || !transcript.trim()) {
-      setState('listening', 'No speech detected. Try again or cancel.');
-      return;
-    }
+      if (!transcript || !transcript.trim()) {
+        setState('error', 'No speech detected. Try again or cancel.');
+        return;
+      }
     recognition = null;
-    setState('processing', 'Processing…');
+    setState('processing');
     var elements = extractElements();
     var needScreenshot = wantsVision(transcript, elements);
 
@@ -130,7 +178,7 @@
             return;
           }
           if (response && response.text) {
-            setState('speaking', 'Speaking…');
+            setState('speaking');
             speak(response.text, function () {
               hideOverlay();
             });
@@ -186,14 +234,14 @@
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setState('error', 'Microphone access was denied.');
       } else if (event.error === 'no-speech') {
-        setState('listening', 'No speech detected. Try again or cancel.');
+        setState('error', 'No speech detected. Try again or cancel.');
       } else {
         setState('error', 'Recognition error: ' + (event.error || 'unknown'));
       }
     };
 
     recognition.onend = function () {
-      if (getStatusEl() && getStatusEl().getAttribute('data-state') === 'listening' && !recognition) return;
+      if (pill && pill.classList.contains('live-lens-pill--listening') && !recognition) return;
     };
 
     try {
@@ -307,7 +355,7 @@
       showOverlay();
     } else if (message.type === 'CAPTURE_DONE') {
       if (overlay) overlay.style.visibility = '';
-      setState('processing', 'Processing…');
+      setState('processing');
     }
   });
 })();

@@ -5,92 +5,102 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 18px;
+  justify-content: flex-end;
+  padding-bottom: 32px;
+  pointer-events: none;
 }
 
 #live-lens-overlay[aria-hidden="true"] {
   display: none;
 }
 
-.live-lens-box {
-  text-align: center;
-  padding: 32px 48px;
-  max-width: 90vw;
+#live-lens-overlay .live-lens-pill-wrap {
+  pointer-events: auto;
 }
 
-.live-lens-status {
-  margin-bottom: 16px;
-  font-weight: 600;
-  font-size: 20px;
-}
-
-.live-lens-status[data-state="listening"]::before {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 10px;
-  vertical-align: middle;
-  background: #0f0;
-  border-radius: 50%;
-  animation: live-lens-pulse 1s ease-in-out infinite;
-}
-
-.live-lens-status[data-state="processing"]::before,
-.live-lens-status[data-state="speaking"]::before {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 10px;
-  vertical-align: middle;
-  background: #ff0;
-  border-radius: 50%;
-}
-
-.live-lens-status[data-state="error"] {
-  color: #f88;
-}
-
-.live-lens-actions {
-  margin-top: 24px;
+.live-lens-pill {
   display: flex;
-  gap: 12px;
+  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-}
-
-.live-lens-btn {
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #000;
-  background: #fff;
+  gap: 6px;
+  min-width: 120px;
+  height: 48px;
+  padding: 0 16px;
+  background: linear-gradient(to bottom, #000, #222);
   border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  opacity: 0.9;
+  border-radius: 9999px;
+  box-sizing: border-box;
 }
 
-.live-lens-btn:hover {
-  background: #eee;
+.live-lens-bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
 }
 
-.live-lens-btn:focus {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+.live-lens-bar {
+  width: 4px;
+  min-height: 4px;
+  max-height: 24px;
+  height: 4px;
+  background: #fff;
+  border-radius: 2px;
+  transition: height 0.08s ease-out;
+}
+
+.live-lens-pill--loading .live-lens-bar {
+  height: 4px;
+  animation: live-lens-loading-bar 0.6s ease-in-out infinite;
+}
+
+.live-lens-pill--loading .live-lens-bar:nth-child(1) { animation-delay: 0s; }
+.live-lens-pill--loading .live-lens-bar:nth-child(2) { animation-delay: 0.1s; }
+.live-lens-pill--loading .live-lens-bar:nth-child(3) { animation-delay: 0.2s; }
+.live-lens-pill--loading .live-lens-bar:nth-child(4) { animation-delay: 0.3s; }
+.live-lens-pill--loading .live-lens-bar:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes live-lens-loading-bar {
+  0%, 100% { height: 4px; }
+  50% { height: 24px; }
+}
+
+.live-lens-pill--speaking .live-lens-bar {
+  animation: live-lens-speaking-bar 0.5s ease-in-out infinite;
+}
+
+.live-lens-pill--speaking .live-lens-bar:nth-child(1) { animation-delay: 0s; }
+.live-lens-pill--speaking .live-lens-bar:nth-child(2) { animation-delay: 0.08s; }
+.live-lens-pill--speaking .live-lens-bar:nth-child(3) { animation-delay: 0.16s; }
+.live-lens-pill--speaking .live-lens-bar:nth-child(4) { animation-delay: 0.24s; }
+.live-lens-pill--speaking .live-lens-bar:nth-child(5) { animation-delay: 0.32s; }
+
+@keyframes live-lens-speaking-bar {
+  0%, 100% { height: 8px; }
+  50% { height: 24px; }
+}
+
+.live-lens-pill--error .live-lens-bars {
+  display: none;
+}
+
+.live-lens-error {
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  color: #f88;
+  max-width: 200px;
+  padding: 0 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live-lens-status[data-state="listening"]::before {
-    animation: none;
+  .live-lens-bar {
+    transition: none;
   }
-}
-
-@keyframes live-lens-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  .live-lens-pill--loading .live-lens-bar,
+  .live-lens-pill--speaking .live-lens-bar {
+    animation: none;
+    height: 12px;
+  }
 }
