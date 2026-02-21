@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Live Lens",
+  "version": "1.0.0",
+  "description": "Describe any part of a webpage with AI vision — get spoken and written answers on demand.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>", "https://api.openai.com/*"],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Live Lens — describe this page"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "describe-page": {
+      "suggested_key": { "default": "Alt+Shift+D", "mac": "Alt+Shift+D" },
+      "description": "Open Live Lens to describe page or selection"
+    }
+  }
+}
