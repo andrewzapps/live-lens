@@ -1,11 +1,17 @@
-User triggers it — keyboard shortcut or toolbar button, on demand. They're on a webpage and hit a wall — an image, a chart, a confusing UI element.
-They select what they need help with — either click on a specific element, or ask a free-text question like "what's in this image" or "what does this page look like."
-Extension captures context — takes a screenshot of the selected element or full visible page, grabs any surrounding DOM text/alt text that exists, and bundles it together.
-Sends to vision AI — screenshot + user question goes to Claude or GPT-4V API.
-AI returns a description — conversational, plain English, answers exactly what was asked rather than dumping everything.
-Reads it aloud + displays it — text-to-speech output so the user doesn't have to read it, plus a small overlay panel showing the text.
-Follow-up questions — user can ask "can you describe just the left side" or "what color is the button" without re-triggering the whole flow. Conversational back and forth on the same context.
+This is a Chrome Extension built with HTML, CSS, and JavaScript.
 
-build this out with react/ts/tsx/vite
+It's called Live Lens.
 
-openai vision and key
+This is a hackathon submission for this prompt: "Build a software tool that genuinely makes life easier for people with disabilities, helping them overcome everyday digital barriers and interact with technology more comfortably, independently, and confidently."
+
+There should be a keyboard shortcut, which triggers overlay that shows listening for input. It should automatically pick up what the user is speaking.
+
+It should extract the elements on the webpage, with each of its positions. It should know where each element is, then store it in an array. 
+
+Send to OpenAI API (user supplies key in popup), with array of elements, along with the user's query.
+- If the user asks about an image element, process it with vision
+- Else, process it with a normal model to reduce token usage / costs
+
+Then, get the response and speak it out to the user.
+
+So blind people or low-vision people could actually just say something like: "What is that image in the top right corner?" or "Summarize the key points in this article"

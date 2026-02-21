@@ -1,2 +1,0 @@
-Load this folder in Chrome (chrome://extensions → Load unpacked).
-This is the built extension. Do not load the parent "live-lens" folder.

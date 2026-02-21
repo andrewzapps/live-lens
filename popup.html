@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Lens</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Live Lens</h1>
+    <p class="usage">Set your OpenAI API key, then use the shortcut <kbd>Ctrl+Shift+L</kbd> (or <kbd>Cmd+Shift+L</kbd> on Mac) on any page to ask questions by voice.</p>
+    <label for="api-key">OpenAI API key</label>
+    <input type="password" id="api-key" placeholder="sk-..." autocomplete="off" />
+    <button type="button" id="save">Save</button>
+    <p id="status" class="status" aria-live="polite"></p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

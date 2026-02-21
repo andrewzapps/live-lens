@@ -1,0 +1,96 @@
+#live-lens-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+}
+
+#live-lens-overlay[aria-hidden="true"] {
+  display: none;
+}
+
+.live-lens-box {
+  text-align: center;
+  padding: 32px 48px;
+  max-width: 90vw;
+}
+
+.live-lens-status {
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.live-lens-status[data-state="listening"]::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 10px;
+  vertical-align: middle;
+  background: #0f0;
+  border-radius: 50%;
+  animation: live-lens-pulse 1s ease-in-out infinite;
+}
+
+.live-lens-status[data-state="processing"]::before,
+.live-lens-status[data-state="speaking"]::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 10px;
+  vertical-align: middle;
+  background: #ff0;
+  border-radius: 50%;
+}
+
+.live-lens-status[data-state="error"] {
+  color: #f88;
+}
+
+.live-lens-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.live-lens-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #000;
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.live-lens-btn:hover {
+  background: #eee;
+}
+
+.live-lens-btn:focus {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-lens-status[data-state="listening"]::before {
+    animation: none;
+  }
+}
+
+@keyframes live-lens-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
