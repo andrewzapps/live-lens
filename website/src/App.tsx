@@ -40,7 +40,7 @@ function Layout() {
           </a>
         </div>
       </nav>
-      <main style={{ padding: '24px', maxWidth: '720px', margin: '0 auto' }}>
+      <main style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
