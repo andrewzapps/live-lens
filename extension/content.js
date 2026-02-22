@@ -231,12 +231,14 @@
       }
     recognition = null;
     setState('processing');
-    var elements = extractElements();
+    var extracted = extractElements();
+    var elements = extracted.elements || extracted;
+    var viewport = extracted.viewport || null;
     var needScreenshot = wantsVision(transcript, elements);
 
     function sendRequest() {
       chrome.runtime.sendMessage(
-        { type: 'OPENAI_REQUEST', payload: { query: transcript.trim(), elements: elements, needScreenshot: needScreenshot } },
+        { type: 'OPENAI_REQUEST', payload: { query: transcript.trim(), elements: elements, viewport: viewport, needScreenshot: needScreenshot } },
         function (response) {
           if (overlay) overlay.style.visibility = '';
           if (chrome.runtime.lastError) {
@@ -340,31 +342,44 @@
   }
 
   function extractElements() {
-    var selector = 'a, button, [role="button"], input, select, textarea, h1, h2, h3, h4, h5, h6, img, [role="heading"], [role="link"], [role="img"], nav, main, header, footer, article, section, [role="main"], [role="navigation"]';
+    var selector = 'a, button, [role="button"], input, select, textarea, h1, h2, h3, h4, h5, h6, img, p, [role="heading"], [role="link"], [role="img"], nav, main, header, footer, article, section, [role="main"], [role="navigation"]';
     var nodes = document.querySelectorAll(selector);
-    var list = [];
-    var viewportTop = 0;
-    var viewportLeft = 0;
     var viewportHeight = window.innerHeight;
     var viewportWidth = window.innerWidth;
-    var maxCount = 200;
-    for (var i = 0; i < nodes.length && list.length < maxCount; i++) {
+    var maxCount = 65;
+    var contentTags = { p: 1, article: 1, section: 1, main: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1 };
+    var raw = [];
+    for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (!el.getBoundingClientRect || !isVisible(el)) continue;
       var rect = el.getBoundingClientRect();
       if (rect.width < 2 && rect.height < 2) continue;
-      var label = getLabel(el);
       var tag = el.tagName ? el.tagName.toLowerCase() : '';
       var role = (el.getAttribute && el.getAttribute('role')) || '';
-      list.push({
+      var isContent = contentTags[tag] || role === 'main';
+      var maxLabelLen = isContent ? 220 : 90;
+      var label = getLabel(el);
+      if (label) label = label.slice(0, maxLabelLen);
+      var top = Math.round(rect.top);
+      var left = Math.round(rect.left);
+      var inView = top >= -50 && top < viewportHeight + 100 && left >= -50 && left < viewportWidth + 50;
+      raw.push({
         tag: tag,
         role: role,
-        label: label ? label.slice(0, 200) : '',
-        rect: { top: Math.round(rect.top), left: Math.round(rect.left), width: Math.round(rect.width), height: Math.round(rect.height) },
-        idOrIndex: el.id || list.length
+        label: label || '',
+        rect: { top: top, left: left, width: Math.round(rect.width), height: Math.round(rect.height) },
+        inView: inView,
+        isContent: isContent,
+        order: (isContent ? 0 : 1e6) + (inView ? 0 : 1e5) + top * 1e3 + left
       });
     }
-    return list;
+    raw.sort(function (a, b) { return a.order - b.order; });
+    var list = [];
+    for (var j = 0; j < raw.length && list.length < maxCount; j++) {
+      var r = raw[j];
+      list.push({ tag: r.tag, role: r.role, label: r.label, rect: r.rect, isContent: r.isContent });
+    }
+    return { elements: list, viewport: { h: viewportHeight, w: viewportWidth } };
   }
 
   function isVisible(el) {
@@ -378,7 +393,7 @@
   function getLabel(el) {
     var label = (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title') || (el.tagName && el.tagName.toLowerCase() === 'img' ? el.getAttribute('alt') : null))) || '';
     if (label) return label.trim();
-    if (el.textContent) return el.textContent.trim().slice(0, 300);
+    if (el.textContent) return el.textContent.trim().replace(/\s+/g, ' ').slice(0, 400);
     return '';
   }
 

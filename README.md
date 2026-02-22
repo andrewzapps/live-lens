@@ -12,15 +12,10 @@ Voice-powered assistant for blind and low-vision users to understand web pages. 
 
 ## Install (Chrome extension)
 
-1. Get the code
-   - Clone or download this repo:
-     ```bash
-     git clone https://github.com/andrewzapps/live-lens.git
-     cd live-lens
-     ```
+1. Clone repository
 2. Load the extension in Chrome
    - Open `chrome://extensions`.
-   - Turn on Developer mode (top right).
+   - Turn on Developer mode
    - Click Load unpacked and select the `extension` folder inside the repo.
 3. Configure
    - Click the Live Lens icon in the toolbar to open the popup.

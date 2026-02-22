@@ -107,7 +107,7 @@ function handleOpenAIRequest(payload, senderTab) {
 function runOpenAI(apiKey, payload, storageResult) {
   var outputLang = (storageResult && storageResult.speechOutputLanguage) || 'en';
   var built = buildOpenAIPayload(payload, outputLang);
-  return callOpenAI(apiKey, built.model, built.messages).then(
+  return callOpenAI(apiKey, built.model, built.messages, built.max_tokens).then(
     function (text) {
       return { text: text };
     },
@@ -126,27 +126,46 @@ function queryWantsVision(query) {
   return false;
 }
 
+function buildCompactElements(elements) {
+  var contentTags = { p: 1, article: 1, section: 1, main: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1 };
+  var lines = [];
+  for (var i = 0; i < elements.length; i++) {
+    var e = elements[i];
+    var r = e.rect || {};
+    var isContent = e.isContent || contentTags[e.tag];
+    var maxLen = isContent ? 200 : 85;
+    var label = (e.label || '').replace(/"/g, "'").slice(0, maxLen);
+    if (label.length < (e.label || '').length) label += '…';
+    lines.push(e.tag + (e.role ? '[' + e.role + ']' : '') + ' "' + label + '" @' + (r.top || 0) + ',' + (r.left || 0) + ' ' + (r.width || 0) + 'x' + (r.height || 0));
+  }
+  return lines.join('\n');
+}
+
 function buildOpenAIPayload(payload, outputLang) {
   var query = payload.query || '';
   var elements = payload.elements || [];
+  var viewport = payload.viewport || null;
   var imagePayloads = payload.imagePayloads || [];
 
   var langNames = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese' };
   var langInstruction = outputLang && outputLang !== 'en' && langNames[outputLang]
-    ? ' You must respond entirely in ' + langNames[outputLang] + '. Your answer will be read aloud in ' + langNames[outputLang] + '.'
+    ? ' Respond entirely in ' + langNames[outputLang] + '.'
     : '';
 
-  var systemText = 'You are helping a blind or low-vision user understand a web page. You will receive a list of elements with positions (top, left, width, height in pixels, relative to viewport) and the user\'s question. When given a screenshot of the page, describe what you see clearly and concisely. Give concise, straight-to-the-point answers that are still useful. No long intros or filler—your answer will be read aloud.' + langInstruction;
-  var elementsText = JSON.stringify(elements, null, 0);
-  if (elementsText.length > 12000) {
-    elementsText = elementsText.slice(0, 12000) + '...[truncated]';
-  }
+  var systemText = 'You help a blind or low-vision user understand a web page. You get elements with their text content and positions (top, left, width x height in viewport pixels). Use the actual text in the "label" field to answer: summarize the page, answer "what is this about", list key points, or say what a specific element says. For position questions ("top right", "that button") use the coordinates. When given a screenshot, describe it briefly. Be direct and concise—answer will be read aloud.' + langInstruction;
+
+  var elementsText = buildCompactElements(elements);
+  if (elementsText.length > 9000) elementsText = elementsText.slice(0, 9000) + '\n...[truncated]';
+
+  var viewportLine = viewport && viewport.h && viewport.w
+    ? 'Viewport: ' + viewport.h + 'px tall, ' + viewport.w + 'px wide.\n\n'
+    : '';
 
   var useVision = queryWantsVision(query) && imagePayloads && imagePayloads.length > 0;
   var model = useVision ? 'gpt-4o' : 'gpt-4o-mini';
   var userContent = [];
 
-  userContent.push({ type: 'text', text: 'Page elements (position in viewport pixels):\n' + elementsText + '\n\nUser question: ' + query });
+  userContent.push({ type: 'text', text: viewportLine + 'Elements (tag [role] "label" @top,left widthxheight):\n' + elementsText + '\n\nUser question: ' + query });
 
   if (useVision && imagePayloads.length > 0) {
     for (var i = 0; i < imagePayloads.length; i++) {
@@ -165,17 +184,21 @@ function buildOpenAIPayload(payload, outputLang) {
     { role: 'user', content: userContent }
   ];
 
-  return { model: model, messages: messages };
+  var opts = { model: model, messages: messages };
+  if (!useVision) opts.max_tokens = 300;
+  return opts;
 }
 
-function callOpenAI(apiKey, model, messages) {
+function callOpenAI(apiKey, model, messages, maxTokens) {
+  var body = { model: model, messages: messages };
+  if (maxTokens) body.max_tokens = maxTokens;
   return fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: 'Bearer ' + apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model: model, messages: messages }),
+    body: JSON.stringify(body),
   }).then(function (res) {
     if (!res.ok) {
       if (res.status === 401) throw new Error('Invalid API key.');
